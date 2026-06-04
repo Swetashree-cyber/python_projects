@@ -84,20 +84,30 @@ def records_dbscan(record, trial_index, eps_list, min_samples=5):
         try:
             lrs_points = lrs_frame_cache[i]
 
+            # guard: loadtxt returns 1-D array when the file has exactly one row
+            if lrs_points.ndim == 1:
+                lrs_points = lrs_points[np.newaxis, :]
+
             hip_pos     = np.array([hip_x[i], hip_y[i]])
             dist_to_hip = np.linalg.norm(lrs_points - hip_pos, axis=-1)
             cropped_points = lrs_points[dist_to_hip < 1.0]
 
             for eps in eps_list:
-                db     = DBSCAN(eps=eps, min_samples=min_samples)
-                labels = db.fit_predict(cropped_points.copy())
-                unique_labels, counts = np.unique(labels, return_counts=True)
+                # DBSCAN requires at least 1 sample; skip clustering when the
+                # cropped window is empty or has fewer points than min_samples
+                if len(cropped_points) < min_samples:
+                    labels       = np.full(len(cropped_points), -1, dtype=int)
+                    valid_labels = []
+                else:
+                    db     = DBSCAN(eps=eps, min_samples=min_samples)
+                    labels = db.fit_predict(cropped_points.copy())
+                    unique_labels, counts = np.unique(labels, return_counts=True)
 
-                # label == -1 is noise in DBSCAN — exclude it
-                valid_labels = [
-                    lbl for lbl, cnt in zip(unique_labels, counts)
-                    if lbl != -1
-                ]
+                    # label == -1 is noise in DBSCAN — exclude it
+                    valid_labels = [
+                        lbl for lbl, cnt in zip(unique_labels, counts)
+                        if lbl != -1
+                    ]
 
                 if len(valid_labels) > 0:
                     clusters_points = np.array([
