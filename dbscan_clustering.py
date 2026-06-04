@@ -33,12 +33,25 @@ def records_dbscan(record, trial_index, eps_list, min_samples=5):
 
     samples = record["Samples"]
 
+    # ---- DIAGNOSTIC: show what the JSON actually contains ----
+    print(f"\n[DIAG] Trial {trial_index+1}: {len(samples)} total samples in record")
+    if len(samples) > 0:
+        s0 = samples[0]
+        print(f"[DIAG] Sample[0] keys : {list(s0.keys())}")
+        print(f"[DIAG] Sample[0] LeftLegX  = {s0.get('LeftLegX',  'KEY MISSING')}")
+        print(f"[DIAG] Sample[0] RightLegX = {s0.get('RightLegX', 'KEY MISSING')}")
+        print(f"[DIAG] Sample[0] LeftCrutchX  = {s0.get('LeftCrutchX',  'KEY MISSING')}")
+        print(f"[DIAG] Sample[0] RightCrutchX = {s0.get('RightCrutchX', 'KEY MISSING')}")
+
     filtered_samples = []
     valid_lx, valid_ly   = [], []
     valid_rx, valid_ry   = [], []
     valid_lcx, valid_lcy = [], []
     valid_rcx, valid_rcy = [], []
     valid_t              = []
+
+    nan_count  = 0
+    big_count  = 0
 
     clusters_per_frame = [[] for _ in eps_list]
 
@@ -48,13 +61,24 @@ def records_dbscan(record, trial_index, eps_list, min_samples=5):
         LCx, LCy = s.get("LeftCrutchX", np.nan), s.get("LeftCrutchY", np.nan)
         RCx, RCy = s.get("RightCrutchX",np.nan), s.get("RightCrutchY",np.nan)
 
-        if all(np.isfinite(x) and abs(x) < 10 for x in [Lx,Ly,Rx,Ry,LCx,LCy,RCx,RCy]):
-            valid_lx.append(Lx);  valid_ly.append(Ly)
-            valid_rx.append(Rx);  valid_ry.append(Ry)
-            valid_lcx.append(LCx); valid_lcy.append(LCy)
-            valid_rcx.append(RCx); valid_rcy.append(RCy)
-            valid_t.append(s.get("Time", 0.0))
-            filtered_samples.append(s)
+        vals = [Lx, Ly, Rx, Ry, LCx, LCy, RCx, RCy]
+        if not all(np.isfinite(x) for x in vals):
+            nan_count += 1
+            continue
+        if not all(abs(x) < 10 for x in vals):
+            big_count += 1
+            continue
+
+        valid_lx.append(Lx);  valid_ly.append(Ly)
+        valid_rx.append(Rx);  valid_ry.append(Ry)
+        valid_lcx.append(LCx); valid_lcy.append(LCy)
+        valid_rcx.append(RCx); valid_rcy.append(RCy)
+        valid_t.append(s.get("Time", 0.0))
+        filtered_samples.append(s)
+
+    print(f"[DIAG] Trial {trial_index+1}: {len(valid_lx)} passed | "
+          f"{nan_count} rejected (NaN/missing) | "
+          f"{big_count} rejected (|value| >= 10)")
 
     valid_lx  = np.array(valid_lx);  valid_ly  = np.array(valid_ly)
     valid_rx  = np.array(valid_rx);  valid_ry  = np.array(valid_ry)
