@@ -422,56 +422,63 @@ if __name__ == "__main__":
                 "lrs_frame_cache":    lrs_frame_cache,
                 "clusters_per_frame": clusters_per_frame,
             }
-            with open(cache_file, "wb") as f:
-                pickle.dump(cache, f)
-            print(f"DBSCAN cache saved: {cache_file}")
+            # only save cache if there is actual data
+            if len(valid_lx) > 0:
+                with open(cache_file, "wb") as f:
+                    pickle.dump(cache, f)
+                print(f"DBSCAN cache saved: {cache_file}")
+            else:
+                print(f"Trial {trial_index + 1}: no valid frames — cache NOT saved.")
 
         # ---- GIF for trial 0 (same as meanshift_frames.gif) ----
         if trial_index == 0:
             eps_gif_index    = 1        # eps = 0.07  (index 1 in eps_list_dbscan)
             num_video_frames = len(valid_lx)
 
-            hip_x = (valid_lx + valid_rx) / 2
-            hip_y = (valid_ly + valid_ry) / 2
+            if num_video_frames == 0:
+                print("Trial 1 has no valid frames — skipping GIF.")
+            else:
+                hip_x = (valid_lx + valid_rx) / 2
+                hip_y = (valid_ly + valid_ry) / 2
 
-            plt.ioff()
-            fig, ax = plt.subplots(figsize=(7, 7))
+                plt.ioff()
+                fig, ax = plt.subplots(figsize=(7, 7))
 
-            def update(frame_index):
-                ax.clear()
+                def update(frame_index):
+                    ax.clear()
 
-                lrs_points     = lrs_frame_cache[frame_index]
-                hip_pos        = np.array([hip_x[frame_index], hip_y[frame_index]])
-                distances      = np.linalg.norm(lrs_points - hip_pos, axis=1)
-                cropped_points = lrs_points[distances < 1.0]
-                clusters       = clusters_per_frame[eps_gif_index][frame_index]
+                    lrs_points     = lrs_frame_cache[frame_index]
+                    hip_pos        = np.array([hip_x[frame_index], hip_y[frame_index]])
+                    distances      = np.linalg.norm(lrs_points - hip_pos, axis=1)
+                    cropped_points = lrs_points[distances < 1.0]
+                    clusters       = clusters_per_frame[eps_gif_index][frame_index]
 
-                ax.scatter(cropped_points[:, 0], cropped_points[:, 1],
-                           s=2, color="gray", alpha=0.4)
-                ax.scatter(valid_lx[frame_index],  valid_ly[frame_index],
-                           s=120, facecolor="none", edgecolor="blue")
-                ax.scatter(valid_rx[frame_index],  valid_ry[frame_index],
-                           s=120, facecolor="none", edgecolor="red")
-                ax.scatter(valid_lcx[frame_index], valid_lcy[frame_index],
-                           s=120, facecolor="none", edgecolor="green")
-                ax.scatter(valid_rcx[frame_index], valid_rcy[frame_index],
-                           s=120, facecolor="none", edgecolor="orange")
+                    ax.scatter(cropped_points[:, 0], cropped_points[:, 1],
+                               s=2, color="gray", alpha=0.4)
+                    ax.scatter(valid_lx[frame_index],  valid_ly[frame_index],
+                               s=120, facecolor="none", edgecolor="blue")
+                    ax.scatter(valid_rx[frame_index],  valid_ry[frame_index],
+                               s=120, facecolor="none", edgecolor="red")
+                    ax.scatter(valid_lcx[frame_index], valid_lcy[frame_index],
+                               s=120, facecolor="none", edgecolor="green")
+                    ax.scatter(valid_rcx[frame_index], valid_rcy[frame_index],
+                               s=120, facecolor="none", edgecolor="orange")
 
-                if len(clusters) > 0:
-                    ax.scatter(clusters[:, 0], clusters[:, 1],
-                               s=80, marker="x", color="purple")
+                    if len(clusters) > 0:
+                        ax.scatter(clusters[:, 0], clusters[:, 1],
+                                   s=80, marker="x", color="purple")
 
-                ax.set_xlim(hip_x[frame_index] - 1.0, hip_x[frame_index] + 1.0)
-                ax.set_ylim(hip_y[frame_index] - 1.0, hip_y[frame_index] + 1.0)
-                ax.set_aspect("equal")
-                ax.set_title(f"DBSCAN Clustering | Frame {frame_index + 1}")
-                return ax,
+                    ax.set_xlim(hip_x[frame_index] - 1.0, hip_x[frame_index] + 1.0)
+                    ax.set_ylim(hip_y[frame_index] - 1.0, hip_y[frame_index] + 1.0)
+                    ax.set_aspect("equal")
+                    ax.set_title(f"DBSCAN Clustering | Frame {frame_index + 1}")
+                    return ax,
 
-            ani = animation.FuncAnimation(fig, update, frames=num_video_frames, blit=False)
-            gif_path = "dbscan_frames.gif"
-            ani.save(gif_path, writer="pillow", fps=10)
-            plt.close(fig)
-            print(f"DBSCAN GIF saved: {gif_path}")
+                ani = animation.FuncAnimation(fig, update, frames=num_video_frames, blit=False)
+                gif_path = "dbscan_frames.gif"
+                ani.save(gif_path, writer="pillow", fps=10)
+                plt.close(fig)
+                print(f"DBSCAN GIF saved: {gif_path}")
 
 # same pattern as your original script — called at module level after the loop
 stats_global_dbscan = _dbscan_global_stats(dbscan_stats)
