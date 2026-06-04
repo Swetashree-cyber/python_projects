@@ -397,6 +397,16 @@ if __name__ == "__main__":
                 filtered_samples   = cache["filtered_samples"]
                 lrs_frame_cache    = cache["lrs_frame_cache"]
                 clusters_per_frame = cache["clusters_per_frame"]
+
+            # restore per-trial stats so dbscan_stats is populated even from cache
+            trial_stats_cache = cache.get("dbscan_stats_trial", {})
+            for thresh in thresholds_distances:
+                dbscan_stats.setdefault(thresh, {})
+                for eps in eps_list_dbscan:
+                    dbscan_stats[thresh].setdefault(eps, {})
+                    t = trial_stats_cache.get(thresh, {}).get(eps, None)
+                    if t is not None:
+                        dbscan_stats[thresh][eps][trial_index] = t
         else:
             print(f"\nProcessing DBSCAN Trial {trial_index + 1} ...")
             result = records_dbscan(
@@ -409,18 +419,28 @@ if __name__ == "__main__":
              filtered_samples, lrs_frame_cache,
              clusters_per_frame) = result
 
+            # bundle per-trial stats into the cache so they survive future loads
+            trial_stats_to_save = {
+                thresh: {
+                    eps: dbscan_stats[thresh][eps].get(trial_index, {})
+                    for eps in eps_list_dbscan
+                }
+                for thresh in thresholds_distances
+            }
+
             cache = {
-                "valid_lx":           valid_lx,
-                "valid_ly":           valid_ly,
-                "valid_rx":           valid_rx,
-                "valid_ry":           valid_ry,
-                "valid_lcx":          valid_lcx,
-                "valid_lcy":          valid_lcy,
-                "valid_rcx":          valid_rcx,
-                "valid_rcy":          valid_rcy,
-                "filtered_samples":   filtered_samples,
-                "lrs_frame_cache":    lrs_frame_cache,
-                "clusters_per_frame": clusters_per_frame,
+                "valid_lx":             valid_lx,
+                "valid_ly":             valid_ly,
+                "valid_rx":             valid_rx,
+                "valid_ry":             valid_ry,
+                "valid_lcx":            valid_lcx,
+                "valid_lcy":            valid_lcy,
+                "valid_rcx":            valid_rcx,
+                "valid_rcy":            valid_rcy,
+                "filtered_samples":     filtered_samples,
+                "lrs_frame_cache":      lrs_frame_cache,
+                "clusters_per_frame":   clusters_per_frame,
+                "dbscan_stats_trial":   trial_stats_to_save,
             }
             # only save cache if there is actual data
             if len(valid_lx) > 0:
